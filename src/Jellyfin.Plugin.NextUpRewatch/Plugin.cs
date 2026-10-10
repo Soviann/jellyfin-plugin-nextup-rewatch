@@ -46,13 +46,13 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             new PluginPageInfo
             {
-                Name = this.Name,
+                Name = "NextUpRewatch",
                 EmbeddedResourcePath = string.Format("{0}.Configuration.Web.config.html", GetType().Namespace),
                 EnableInMainMenu = true
             },
             new PluginPageInfo
             {
-                Name = "nextuprewatchconfig.js",
+                Name = "NextUpRewatch.js",
                 EmbeddedResourcePath = string.Format("{0}.Configuration.Web.config.js", GetType().Namespace)
             }
         };
