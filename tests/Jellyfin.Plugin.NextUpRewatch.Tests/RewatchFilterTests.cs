@@ -241,4 +241,105 @@ public class RewatchFilterTests
 
         await Assert.ThrowsAnyAsync<Exception>(() => middleware.FilterNextUpResponseAsync(stream, user, debugLogging: false));
     }
+
+    [Theory]
+    [InlineData("gzip")]
+    [InlineData("br")]
+    [InlineData("deflate")]
+    public async Task InvokeAsync_HandlesCompressedResponses_Correctly(string encoding)
+    {
+        var seriesId = Guid.NewGuid();
+        var userGuid = Guid.NewGuid();
+        var user = CreateTestUser();
+
+        _userManagerMock.Setup(u => u.GetUserById(userGuid)).Returns(user);
+        // Series max played is same as episode -> should be filtered
+        _evaluatorMock.Setup(e => e.GetSeriesMaxLastPlayedDate(seriesId, user))
+            .Returns(DateTime.UtcNow);
+
+        var rawJson = $$"""
+        {
+            "Items": [
+                {
+                    "Name": "Finished Ep",
+                    "SeriesName": "Columbo",
+                    "SeriesId": "{{seriesId}}",
+                    "UserData": {
+                        "Played": true,
+                        "LastPlayedDate": "{{DateTime.UtcNow:O}}"
+                    }
+                }
+            ],
+            "TotalRecordCount": 1
+        }
+        """;
+
+        var rawBytes = Encoding.UTF8.GetBytes(rawJson);
+
+        // Next middleware writes compressed JSON into Response.Body
+        RequestDelegate next = async (HttpContext ctx) =>
+        {
+            ctx.Response.StatusCode = StatusCodes.Status200OK;
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+            ctx.Response.Headers.ContentEncoding = encoding;
+
+            if (encoding == "gzip")
+            {
+                await using var gz = new System.IO.Compression.GZipStream(ctx.Response.Body, System.IO.Compression.CompressionLevel.Fastest, leaveOpen: true);
+                await gz.WriteAsync(rawBytes);
+            }
+            else if (encoding == "br")
+            {
+                await using var br = new System.IO.Compression.BrotliStream(ctx.Response.Body, System.IO.Compression.CompressionLevel.Fastest, leaveOpen: true);
+                await br.WriteAsync(rawBytes);
+            }
+            else if (encoding == "deflate")
+            {
+                await using var def = new System.IO.Compression.DeflateStream(ctx.Response.Body, System.IO.Compression.CompressionLevel.Fastest, leaveOpen: true);
+                await def.WriteAsync(rawBytes);
+            }
+        };
+
+        var middleware = new NextUpRewatchMiddleware(
+            next,
+            _loggerMock.Object,
+            _evaluatorMock.Object,
+            _userManagerMock.Object);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/Shows/NextUp";
+        context.Request.QueryString = new QueryString($"?userId={userGuid}&enableRewatching=true");
+
+        using var responseStream = new MemoryStream();
+        context.Response.Body = responseStream;
+
+        await middleware.InvokeAsync(context);
+
+        // Verify output is compressed and can be decompressed
+        responseStream.Seek(0, SeekOrigin.Begin);
+        Stream decompressed;
+        if (encoding == "gzip")
+        {
+            decompressed = new System.IO.Compression.GZipStream(responseStream, System.IO.Compression.CompressionMode.Decompress);
+        }
+        else if (encoding == "br")
+        {
+            decompressed = new System.IO.Compression.BrotliStream(responseStream, System.IO.Compression.CompressionMode.Decompress);
+        }
+        else
+        {
+            decompressed = new System.IO.Compression.DeflateStream(responseStream, System.IO.Compression.CompressionMode.Decompress);
+        }
+
+        using var reader = new StreamReader(decompressed, Encoding.UTF8);
+        var resultJson = await reader.ReadToEndAsync();
+        var node = JsonNode.Parse(resultJson);
+
+        Assert.NotNull(node);
+        var items = node?["Items"]?.AsArray();
+        Assert.NotNull(items);
+        Assert.Empty(items); // Item was filtered out!
+        Assert.Equal(0, node?["TotalRecordCount"]?.GetValue<int>());
+    }
 }
+

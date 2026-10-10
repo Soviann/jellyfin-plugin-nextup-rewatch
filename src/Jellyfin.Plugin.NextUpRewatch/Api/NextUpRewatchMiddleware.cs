@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -96,11 +97,77 @@ public class NextUpRewatchMiddleware
                 && (context.Response.ContentType?.Contains("application/json", StringComparison.OrdinalIgnoreCase) ?? false))
             {
                 responseBodyStream.Seek(0, SeekOrigin.Begin);
-                var filteredJsonBytes = await FilterNextUpResponseAsync(responseBodyStream, user, config?.EnableDebugLogging ?? false).ConfigureAwait(false);
+                var contentEncoding = context.Response.Headers.ContentEncoding.ToString();
+
+                Stream decompressedStream = responseBodyStream;
+                bool isCompressed = false;
+
+                if (string.Equals(contentEncoding, "gzip", StringComparison.OrdinalIgnoreCase))
+                {
+                    decompressedStream = new GZipStream(responseBodyStream, CompressionMode.Decompress, leaveOpen: true);
+                    isCompressed = true;
+                }
+                else if (string.Equals(contentEncoding, "br", StringComparison.OrdinalIgnoreCase))
+                {
+                    decompressedStream = new BrotliStream(responseBodyStream, CompressionMode.Decompress, leaveOpen: true);
+                    isCompressed = true;
+                }
+                else if (string.Equals(contentEncoding, "deflate", StringComparison.OrdinalIgnoreCase))
+                {
+                    decompressedStream = new DeflateStream(responseBodyStream, CompressionMode.Decompress, leaveOpen: true);
+                    isCompressed = true;
+                }
+
+                byte[] filteredJsonBytes;
+                try
+                {
+                    filteredJsonBytes = await FilterNextUpResponseAsync(decompressedStream, user, config?.EnableDebugLogging ?? false).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (isCompressed)
+                    {
+                        await decompressedStream.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
 
                 context.Response.Body = originalBodyStream;
-                context.Response.ContentLength = filteredJsonBytes.Length;
-                await originalBodyStream.WriteAsync(filteredJsonBytes).ConfigureAwait(false);
+
+                if (isCompressed)
+                {
+                    // Recompress response with the matching compression algorithm
+                    using var compressedMs = new MemoryStream();
+                    if (string.Equals(contentEncoding, "gzip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await using (var gz = new GZipStream(compressedMs, CompressionLevel.Fastest, leaveOpen: true))
+                        {
+                            await gz.WriteAsync(filteredJsonBytes).ConfigureAwait(false);
+                        }
+                    }
+                    else if (string.Equals(contentEncoding, "br", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await using (var br = new BrotliStream(compressedMs, CompressionLevel.Fastest, leaveOpen: true))
+                        {
+                            await br.WriteAsync(filteredJsonBytes).ConfigureAwait(false);
+                        }
+                    }
+                    else if (string.Equals(contentEncoding, "deflate", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await using (var def = new DeflateStream(compressedMs, CompressionLevel.Fastest, leaveOpen: true))
+                        {
+                            await def.WriteAsync(filteredJsonBytes).ConfigureAwait(false);
+                        }
+                    }
+
+                    var finalCompressedBytes = compressedMs.ToArray();
+                    context.Response.ContentLength = finalCompressedBytes.Length;
+                    await originalBodyStream.WriteAsync(finalCompressedBytes).ConfigureAwait(false);
+                }
+                else
+                {
+                    context.Response.ContentLength = filteredJsonBytes.Length;
+                    await originalBodyStream.WriteAsync(filteredJsonBytes).ConfigureAwait(false);
+                }
             }
             else
             {
