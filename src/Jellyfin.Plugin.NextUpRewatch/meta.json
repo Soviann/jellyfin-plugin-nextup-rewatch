@@ -1,0 +1,14 @@
+{
+  "category": "General",
+  "guid": "9b84a277-2f3b-48cf-9a99-b1d5c7f897e1",
+  "name": "NextUp Rewatch",
+  "description": "Filters stalled completed series and dead-end specials from Next Up when rewatching is active, while seamlessly preserving active rewatches.",
+  "overview": "Smart Next Up filter for rewatched TV series",
+  "owner": "Soviann",
+  "targetAbi": "10.10.7.0",
+  "timestamp": "2026-10-10T10:00:00.0000000Z",
+  "version": "1.0.0.0",
+  "status": "Active",
+  "autoUpdate": false,
+  "assemblies": []
+}

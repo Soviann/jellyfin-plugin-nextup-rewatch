@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{0C4018AE-3B69-4F20-812F-202EA825EAC5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.Plugin.NextUpRewatch", "src\Jellyfin.Plugin.NextUpRewatch\Jellyfin.Plugin.NextUpRewatch.csproj", "{67D04225-A8D6-4B5F-B9D7-D70F7EB9CF93}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A7C03820-279C-4A48-A4A5-3E564DB6CD41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.Plugin.NextUpRewatch.Tests", "tests\Jellyfin.Plugin.NextUpRewatch.Tests\Jellyfin.Plugin.NextUpRewatch.Tests.csproj", "{6D7420BC-B8D1-4FEC-BC58-790667B7DED1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{67D04225-A8D6-4B5F-B9D7-D70F7EB9CF93}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67D04225-A8D6-4B5F-B9D7-D70F7EB9CF93}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67D04225-A8D6-4B5F-B9D7-D70F7EB9CF93}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67D04225-A8D6-4B5F-B9D7-D70F7EB9CF93}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D7420BC-B8D1-4FEC-BC58-790667B7DED1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D7420BC-B8D1-4FEC-BC58-790667B7DED1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D7420BC-B8D1-4FEC-BC58-790667B7DED1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D7420BC-B8D1-4FEC-BC58-790667B7DED1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{67D04225-A8D6-4B5F-B9D7-D70F7EB9CF93} = {0C4018AE-3B69-4F20-812F-202EA825EAC5}
+		{6D7420BC-B8D1-4FEC-BC58-790667B7DED1} = {A7C03820-279C-4A48-A4A5-3E564DB6CD41}
+	EndGlobalSection
+EndGlobal

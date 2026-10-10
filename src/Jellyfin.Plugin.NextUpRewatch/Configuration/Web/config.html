@@ -1,0 +1,42 @@
+<div id="NextUpRewatchConfigurationPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="NextUpRewatchConfigForm">
+                <div class="sectionTitleContainer flex align-items-center">
+                    <h2 class="sectionTitle">NextUp Rewatch Configuration</h2>
+                </div>
+                <p>
+                    Intelligently manages the Jellyfin "Next Up" carousel when the client-side
+                    <strong>"Enable Rewatching in Next Up"</strong> setting is enabled. It filters out stalled completed shows
+                    and dead-end specials while preserving active rewatching sequences.
+                </p>
+
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label>
+                        <input is="emby-checkbox" type="checkbox" id="chkEnableFilter" name="chkEnableFilter" />
+                        <span>Enable Rewatch Filter</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Automatically hide completed series that stay stuck in "Next Up" with their final watched episode, while preserving active rewatches.
+                    </div>
+                </div>
+
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label>
+                        <input is="emby-checkbox" type="checkbox" id="chkEnableDebugLogging" name="chkEnableDebugLogging" />
+                        <span>Enable Debug Logging</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Log detailed filtering decisions in the Jellyfin server log.
+                    </div>
+                </div>
+
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                        <span>Save</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
