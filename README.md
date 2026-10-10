@@ -99,6 +99,13 @@ dotnet build -c Release
 dotnet test -c Release
 ```
 
+### Validate Repository Manifest
+A dedicated validator checks `manifest.json` against schema standards, cross-references GUID with `Plugin.cs`, and checks remote asset checksums:
+```bash
+python3 scripts/validate-manifest.py --check-remote
+```
+*(Also automatically enforced in GitHub Actions CI).*
+
 ---
 
 ## 📄 License
