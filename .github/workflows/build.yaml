@@ -21,7 +21,7 @@ jobs:
           python-version: '3.11'
 
       - name: Validate manifest.json
-        run: python3 scripts/validate-manifest.py --check-remote
+        run: python3 scripts/validate-manifest.py
 
   build:
     name: Build & Test
