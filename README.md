@@ -40,8 +40,26 @@ However, this feature contains a critical flaw ([Jellyfin Issue #10470](https://
 
 ## 🚀 Installation
 
-### Option 1: Manual Installation (Docker / Host)
-1. Download the latest release `Jellyfin.Plugin.NextUpRewatch.zip` (or build from source).
+### Option 1: Via Jellyfin Plugin Repository (Recommended)
+
+1. Open **Jellyfin Dashboard** $\rightarrow$ **Plugins** $\rightarrow$ **Repositories** tab.
+2. Click the **➕ Add Repository** button.
+3. Enter the repository details:
+   - **Repository Name:** `NextUp Rewatch Repository` (or any custom name)
+   - **Repository URL:**
+     ```
+     https://raw.githubusercontent.com/Soviann/jellyfin-plugin-nextup-rewatch/main/manifest.json
+     ```
+4. Click **Save**.
+5. Switch to the **Catalog** tab.
+6. Find **NextUp Rewatch** under the **General** category and click **Install**.
+7. Restart your Jellyfin server / container when prompted or at your convenience.
+
+---
+
+### Option 2: Manual Installation (Docker / Host)
+
+1. Download the latest release `NextUpRewatch_1.0.0.0.zip` (or build from source).
 2. Create a folder in your Jellyfin `plugins` directory:
    ```bash
    mkdir -p /path/to/jellyfin/config/plugins/NextUpRewatch_1.0.0.0
