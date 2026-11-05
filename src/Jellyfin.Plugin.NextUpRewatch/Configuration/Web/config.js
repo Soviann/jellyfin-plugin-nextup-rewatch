@@ -5,6 +5,7 @@ export default function (view) {
         Dashboard.showLoadingMsg();
         ApiClient.getPluginConfiguration(pluginId).then((config) => {
             view.querySelector('#chkEnableFilter').checked = config.EnableFilter !== false;
+            view.querySelector('#chkForceEnableRewatching').checked = config.ForceEnableRewatching !== false;
             view.querySelector('#chkEnableDebugLogging').checked = config.EnableDebugLogging === true;
             Dashboard.hideLoadingMsg();
         });
@@ -16,6 +17,7 @@ export default function (view) {
 
         ApiClient.getPluginConfiguration(pluginId).then((config) => {
             config.EnableFilter = view.querySelector('#chkEnableFilter').checked;
+            config.ForceEnableRewatching = view.querySelector('#chkForceEnableRewatching').checked;
             config.EnableDebugLogging = view.querySelector('#chkEnableDebugLogging').checked;
 
             ApiClient.updatePluginConfiguration(pluginId, config).then((result) => {

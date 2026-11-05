@@ -14,6 +14,7 @@ public class PluginConfiguration : BasePluginConfiguration
     {
         EnableFilter = true;
         EnableDebugLogging = false;
+        ForceEnableRewatching = true;
     }
 
     /// <summary>
@@ -25,4 +26,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a value indicating whether debug logging is enabled.
     /// </summary>
     public bool EnableDebugLogging { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to always force enableRewatching=true server-side on /Shows/NextUp requests.
+    /// </summary>
+    public bool ForceEnableRewatching { get; set; }
 }

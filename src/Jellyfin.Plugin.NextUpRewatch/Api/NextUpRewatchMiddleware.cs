@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Data.Entities;
+using Jellyfin.Plugin.NextUpRewatch.Configuration;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 
 namespace Jellyfin.Plugin.NextUpRewatch.Api;
 
@@ -20,6 +24,7 @@ public class NextUpRewatchMiddleware
     private readonly ILogger<NextUpRewatchMiddleware> _logger;
     private readonly ISeriesRewatchEvaluator _evaluator;
     private readonly IUserManager _userManager;
+    private readonly PluginConfiguration? _config;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NextUpRewatchMiddleware"/> class.
@@ -28,17 +33,22 @@ public class NextUpRewatchMiddleware
     /// <param name="logger">The logger.</param>
     /// <param name="evaluator">The series rewatch evaluator.</param>
     /// <param name="userManager">The user manager.</param>
+    /// <param name="config">Optional plugin configuration (falls back to Plugin.Instance if null).</param>
     public NextUpRewatchMiddleware(
         RequestDelegate next,
         ILogger<NextUpRewatchMiddleware> logger,
         ISeriesRewatchEvaluator evaluator,
-        IUserManager userManager)
+        IUserManager userManager,
+        PluginConfiguration? config = null)
     {
         _next = next;
         _logger = logger;
         _evaluator = evaluator;
         _userManager = userManager;
+        _config = config;
     }
+
+    private PluginConfiguration? GetConfiguration() => _config ?? Plugin.Instance?.Configuration;
 
     /// <summary>
     /// Invokes the middleware.
@@ -47,7 +57,7 @@ public class NextUpRewatchMiddleware
     /// <returns>A task representing asynchronous execution.</returns>
     public async Task InvokeAsync(HttpContext context)
     {
-        var config = Plugin.Instance?.Configuration;
+        var config = GetConfiguration();
         if (config != null && !config.EnableFilter)
         {
             await _next(context).ConfigureAwait(false);
@@ -55,20 +65,39 @@ public class NextUpRewatchMiddleware
         }
 
         var path = context.Request.Path.Value ?? string.Empty;
-        if (!path.EndsWith("/Shows/NextUp", StringComparison.OrdinalIgnoreCase))
+        if (!path.TrimEnd('/').EndsWith("/Shows/NextUp", StringComparison.OrdinalIgnoreCase))
         {
             await _next(context).ConfigureAwait(false);
             return;
         }
 
-        // Only filter when enableRewatching is requested
+        // Check if enableRewatching is requested or if server-side rewatching is forced
         var enableRewatchingQuery = context.Request.Query["enableRewatching"].ToString();
         var isRewatchingEnabled = string.Equals(enableRewatchingQuery, "true", StringComparison.OrdinalIgnoreCase);
 
+        var forceEnableRewatching = config?.ForceEnableRewatching ?? false;
         if (!isRewatchingEnabled)
         {
-            await _next(context).ConfigureAwait(false);
-            return;
+            if (forceEnableRewatching)
+            {
+                var queryDict = new Dictionary<string, StringValues>(context.Request.Query, StringComparer.OrdinalIgnoreCase)
+                {
+                    ["enableRewatching"] = "true"
+                };
+                context.Request.Query = new QueryCollection(queryDict);
+                context.Request.QueryString = QueryString.Create(queryDict.Select(kv => new KeyValuePair<string, string?>(kv.Key, kv.Value.ToString())));
+                isRewatchingEnabled = true;
+
+                if (config?.EnableDebugLogging ?? false)
+                {
+                    _logger.LogInformation("NextUpRewatchMiddleware: Force-injected enableRewatching=true for {Path}", path);
+                }
+            }
+            else
+            {
+                await _next(context).ConfigureAwait(false);
+                return;
+            }
         }
 
         // Determine user

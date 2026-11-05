@@ -90,6 +90,7 @@ However, this feature contains a critical flaw ([Jellyfin Issue #10470](https://
 Once installed, go to **Jellyfin Dashboard** $\rightarrow$ **Plugins** $\rightarrow$ **NextUp Rewatch**:
 
 * **Enable Rewatch Filter:** Master toggle to activate or deactivate the filter (default: `Enabled`).
+* **Force Enable Rewatching (Server-Side):** Automatically forces rewatching for all clients (including Moonfin, Swiftfin, Infuse, etc.) by injecting `enableRewatching=true` on `/Shows/NextUp` queries, even if the client app lacks a client-side rewatching toggle (default: `Enabled`).
 * **Enable Debug Logging:** Logs filtering decisions to Jellyfin server logs for inspection.
 
 ---
@@ -97,7 +98,7 @@ Once installed, go to **Jellyfin Dashboard** $\rightarrow$ **Plugins** $\rightar
 ## ❓ Frequently Asked Questions (FAQ)
 
 ### Do I still need "Enable Rewatching in Next Up" turned on in my client?
-Yes. The plugin works in harmony with Jellyfin's rewatching feature. Keep *"Enable Rewatching in Next Up"* checked in your client settings so Jellyfin suggests rewatch episodes, and the plugin will automatically filter out the completed ones that would otherwise get stuck.
+With **Force Enable Rewatching (Server-Side)** enabled (default), **no client configuration is required**. The plugin automatically injects `enableRewatching=true` on the server so third-party clients (Moonfin, Swiftfin, Infuse, etc.) will receive active rewatching episodes out-of-the-box while stalled completed shows remain cleanly filtered out. If you disable the server-side force toggle, you should keep *"Enable Rewatching in Next Up"* checked in your client settings.
 
 ### Does this work on TV clients (LG webOS, Samsung Tizen, Android TV)?
 **Yes.** Because filtering is applied directly to the `/Shows/NextUp` API response at the server level, every connected client (web, mobile, TV apps, Kodi, Findroid) benefits immediately without any client configuration.

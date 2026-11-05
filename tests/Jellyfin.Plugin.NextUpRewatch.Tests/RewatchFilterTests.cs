@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Jellyfin.Data.Entities;
 using Jellyfin.Plugin.NextUpRewatch.Api;
+using Jellyfin.Plugin.NextUpRewatch.Configuration;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -340,6 +341,262 @@ public class RewatchFilterTests
         Assert.NotNull(items);
         Assert.Empty(items); // Item was filtered out!
         Assert.Equal(0, node?["TotalRecordCount"]?.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenForceEnableRewatchingTrue_InjectsEnableRewatchingQuery_Nominal()
+    {
+        var seriesId = Guid.NewGuid();
+        var userGuid = Guid.NewGuid();
+        var user = CreateTestUser();
+
+        _userManagerMock.Setup(u => u.GetUserById(userGuid)).Returns(user);
+        _evaluatorMock.Setup(e => e.GetSeriesMaxLastPlayedDate(seriesId, user)).Returns(DateTime.UtcNow);
+
+        bool observedEnableRewatchingInDownstream = false;
+        string? observedQueryStringInDownstream = null;
+
+        var rawJson = $$"""
+        {
+            "Items": [
+                {
+                    "Name": "Finished Ep",
+                    "SeriesName": "Columbo",
+                    "SeriesId": "{{seriesId}}",
+                    "UserData": {
+                        "Played": true,
+                        "LastPlayedDate": "{{DateTime.UtcNow:O}}"
+                    }
+                }
+            ],
+            "TotalRecordCount": 1
+        }
+        """;
+        var rawBytes = Encoding.UTF8.GetBytes(rawJson);
+
+        RequestDelegate next = async (HttpContext ctx) =>
+        {
+            observedEnableRewatchingInDownstream = string.Equals(ctx.Request.Query["enableRewatching"].ToString(), "true", StringComparison.OrdinalIgnoreCase);
+            observedQueryStringInDownstream = ctx.Request.QueryString.Value;
+
+            ctx.Response.StatusCode = StatusCodes.Status200OK;
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+            await ctx.Response.Body.WriteAsync(rawBytes);
+        };
+
+        var config = new PluginConfiguration
+        {
+            EnableFilter = true,
+            ForceEnableRewatching = true
+        };
+
+        var middleware = new NextUpRewatchMiddleware(
+            next,
+            _loggerMock.Object,
+            _evaluatorMock.Object,
+            _userManagerMock.Object,
+            config);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/Shows/NextUp";
+        // Query has NO enableRewatching parameter (like Moonfin)
+        context.Request.QueryString = new QueryString($"?userId={userGuid}");
+
+        using var responseStream = new MemoryStream();
+        context.Response.Body = responseStream;
+
+        await middleware.InvokeAsync(context);
+
+        // 1. Verify downstream received enableRewatching=true in both Query and QueryString
+        Assert.True(observedEnableRewatchingInDownstream);
+        Assert.NotNull(observedQueryStringInDownstream);
+        Assert.Contains("enableRewatching=true", observedQueryStringInDownstream);
+
+        // 2. Verify middleware processed response and filtered out stalled completed episode
+        responseStream.Seek(0, SeekOrigin.Begin);
+        using var reader = new StreamReader(responseStream, Encoding.UTF8);
+        var resultJson = await reader.ReadToEndAsync();
+        var node = JsonNode.Parse(resultJson);
+        Assert.NotNull(node);
+        var items = node["Items"]?.AsArray();
+        Assert.NotNull(items);
+        Assert.Empty(items);
+        Assert.Equal(0, node["TotalRecordCount"]?.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenForceEnableRewatchingFalse_LeavesQueryUntouchedAndBypassesFilter_Boundary()
+    {
+        var userGuid = Guid.NewGuid();
+        var user = CreateTestUser();
+
+        _userManagerMock.Setup(u => u.GetUserById(userGuid)).Returns(user);
+
+        bool observedEnableRewatchingInDownstream = true;
+        string? observedQueryStringInDownstream = null;
+
+        var rawJson = """
+        {
+            "Items": [],
+            "TotalRecordCount": 0
+        }
+        """;
+        var rawBytes = Encoding.UTF8.GetBytes(rawJson);
+
+        RequestDelegate next = async (HttpContext ctx) =>
+        {
+            observedEnableRewatchingInDownstream = ctx.Request.Query.ContainsKey("enableRewatching");
+            observedQueryStringInDownstream = ctx.Request.QueryString.Value;
+
+            ctx.Response.StatusCode = StatusCodes.Status200OK;
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+            await ctx.Response.Body.WriteAsync(rawBytes);
+        };
+
+        var config = new PluginConfiguration
+        {
+            EnableFilter = true,
+            ForceEnableRewatching = false
+        };
+
+        var middleware = new NextUpRewatchMiddleware(
+            next,
+            _loggerMock.Object,
+            _evaluatorMock.Object,
+            _userManagerMock.Object,
+            config);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/Shows/NextUp";
+        context.Request.QueryString = new QueryString($"?userId={userGuid}");
+
+        using var responseStream = new MemoryStream();
+        context.Response.Body = responseStream;
+
+        await middleware.InvokeAsync(context);
+
+        // Verify downstream did NOT receive enableRewatching
+        Assert.False(observedEnableRewatchingInDownstream);
+        Assert.NotNull(observedQueryStringInDownstream);
+        Assert.DoesNotContain("enableRewatching", observedQueryStringInDownstream);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenClientAlreadySentEnableRewatching_PreservesQueryParam_Boundary()
+    {
+        var userGuid = Guid.NewGuid();
+        var user = CreateTestUser();
+
+        _userManagerMock.Setup(u => u.GetUserById(userGuid)).Returns(user);
+
+        string? observedEnableRewatching = null;
+        string? observedQueryStringInDownstream = null;
+
+        var rawJson = """
+        {
+            "Items": [],
+            "TotalRecordCount": 0
+        }
+        """;
+        var rawBytes = Encoding.UTF8.GetBytes(rawJson);
+
+        RequestDelegate next = async (HttpContext ctx) =>
+        {
+            observedEnableRewatching = ctx.Request.Query["enableRewatching"].ToString();
+            observedQueryStringInDownstream = ctx.Request.QueryString.Value;
+
+            ctx.Response.StatusCode = StatusCodes.Status200OK;
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+            await ctx.Response.Body.WriteAsync(rawBytes);
+        };
+
+        var config = new PluginConfiguration
+        {
+            EnableFilter = true,
+            ForceEnableRewatching = true
+        };
+
+        var middleware = new NextUpRewatchMiddleware(
+            next,
+            _loggerMock.Object,
+            _evaluatorMock.Object,
+            _userManagerMock.Object,
+            config);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/Shows/NextUp";
+        context.Request.QueryString = new QueryString($"?userId={userGuid}&enableRewatching=true");
+
+        using var responseStream = new MemoryStream();
+        context.Response.Body = responseStream;
+
+        await middleware.InvokeAsync(context);
+
+        // Verify enableRewatching is "true" without duplicated parameters
+        Assert.Equal("true", observedEnableRewatching);
+        Assert.NotNull(observedQueryStringInDownstream);
+        // Ensure not duplicated e.g. "enableRewatching=true&enableRewatching=true"
+        var occurrences = (observedQueryStringInDownstream.Length - observedQueryStringInDownstream.Replace("enableRewatching=true", "").Length) / "enableRewatching=true".Length;
+        Assert.Equal(1, occurrences);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenClientSentEnableRewatchingFalse_OverwritesToTrue_Boundary()
+    {
+        var userGuid = Guid.NewGuid();
+        var user = CreateTestUser();
+
+        _userManagerMock.Setup(u => u.GetUserById(userGuid)).Returns(user);
+
+        string? observedEnableRewatching = null;
+        string? observedQueryStringInDownstream = null;
+
+        var rawJson = """
+        {
+            "Items": [],
+            "TotalRecordCount": 0
+        }
+        """;
+        var rawBytes = Encoding.UTF8.GetBytes(rawJson);
+
+        RequestDelegate next = async (HttpContext ctx) =>
+        {
+            observedEnableRewatching = ctx.Request.Query["enableRewatching"].ToString();
+            observedQueryStringInDownstream = ctx.Request.QueryString.Value;
+
+            ctx.Response.StatusCode = StatusCodes.Status200OK;
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+            await ctx.Response.Body.WriteAsync(rawBytes);
+        };
+
+        var config = new PluginConfiguration
+        {
+            EnableFilter = true,
+            ForceEnableRewatching = true
+        };
+
+        var middleware = new NextUpRewatchMiddleware(
+            next,
+            _loggerMock.Object,
+            _evaluatorMock.Object,
+            _userManagerMock.Object,
+            config);
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/Shows/NextUp";
+        // Client explicitly sent enableRewatching=false
+        context.Request.QueryString = new QueryString($"?userId={userGuid}&enableRewatching=false");
+
+        using var responseStream = new MemoryStream();
+        context.Response.Body = responseStream;
+
+        await middleware.InvokeAsync(context);
+
+        // Verify enableRewatching was overwritten to "true" without duplicated parameters
+        Assert.Equal("true", observedEnableRewatching);
+        Assert.NotNull(observedQueryStringInDownstream);
+        Assert.Contains("enableRewatching=true", observedQueryStringInDownstream);
+        Assert.DoesNotContain("enableRewatching=false", observedQueryStringInDownstream);
     }
 }
 

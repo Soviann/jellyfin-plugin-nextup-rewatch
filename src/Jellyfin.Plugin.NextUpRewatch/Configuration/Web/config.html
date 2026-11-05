@@ -23,6 +23,16 @@
 
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label>
+                        <input is="emby-checkbox" type="checkbox" id="chkForceEnableRewatching" name="chkForceEnableRewatching" />
+                        <span>Force Enable Rewatching (Server-Side)</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Automatically enables rewatching for all clients (including Moonfin, Swiftfin, Infuse) by injecting <code>enableRewatching=true</code> on Next Up requests, even if the client app lacks a rewatching toggle.
+                    </div>
+                </div>
+
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label>
                         <input is="emby-checkbox" type="checkbox" id="chkEnableDebugLogging" name="chkEnableDebugLogging" />
                         <span>Enable Debug Logging</span>
                     </label>
