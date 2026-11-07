@@ -8,6 +8,14 @@
     "category": "General",
     "versions": [
       {
+        "version": "1.2.0.0",
+        "changelog": "- Add PromoteActiveRewatches setting (enabled by default) to align Next Up LastPlayedDate of active rewatch episodes with the series' latest watch date\n- Ensure client apps (such as Moonfin) sort active rewatch series to the top of Continue Watching instead of sinking them by their historical first-watch date\n- Preserve Played status in Next Up response while ensuring proper queue positioning",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/Soviann/jellyfin-plugin-nextup-rewatch/releases/download/v1.2.0.0/NextUpRewatch_1.2.0.0.zip",
+        "checksum": "fd50062f1761d08d69117dad0d8af534",
+        "timestamp": "2026-11-07T13:50:00Z"
+      },
+      {
         "version": "1.1.0.0",
         "changelog": "- Add ForceEnableRewatching setting (enabled by default) to force enableRewatching=true server-side on /Shows/NextUp requests\n- Support third-party clients lacking a client-side rewatching toggle (Moonfin, Swiftfin, Infuse)\n- Clean up stalled completed series automatically while preserving ongoing rewatches",
         "targetAbi": "10.10.0.0",
