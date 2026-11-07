@@ -153,6 +153,50 @@ public class RewatchFilterTests
         Assert.Single(items);
         Assert.Equal("Episode 2", items[0]?["Name"]?.ToString());
         Assert.Equal(1, node["TotalRecordCount"]?.GetValue<int>());
+        Assert.Equal(seriesMaxDate.ToString("O"), items[0]?["UserData"]?["LastPlayedDate"]?.ToString());
+        Assert.True(items[0]?["UserData"]?["Played"]?.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task FilterNextUpResponse_PreservesOriginalDate_WhenPromoteActiveRewatchesIsFalse()
+    {
+        var middleware = CreateMiddleware();
+        var user = CreateTestUser();
+        var seriesId = Guid.NewGuid();
+
+        var seriesMaxDate = DateTime.UtcNow;
+        var ep2WatchedDate = DateTime.UtcNow.AddMonths(-3);
+
+        _evaluatorMock.Setup(e => e.GetSeriesMaxLastPlayedDate(seriesId, user)).Returns(seriesMaxDate);
+
+        var json = $$"""
+        {
+            "Items": [
+                {
+                    "Name": "Episode 2",
+                    "SeriesName": "Sherlock Holmes",
+                    "SeriesId": "{{seriesId}}",
+                    "UserData": {
+                        "Played": true,
+                        "LastPlayedDate": "{{ep2WatchedDate:O}}"
+                    }
+                }
+            ],
+            "TotalRecordCount": 1
+        }
+        """;
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+        var resultBytes = await middleware.FilterNextUpResponseAsync(stream, user, debugLogging: false, promoteActiveRewatches: false);
+        var resultJson = Encoding.UTF8.GetString(resultBytes);
+
+        var node = JsonNode.Parse(resultJson);
+        Assert.NotNull(node);
+        var items = node["Items"]?.AsArray();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal(ep2WatchedDate.ToString("O"), items[0]?["UserData"]?["LastPlayedDate"]?.ToString());
+        Assert.True(items[0]?["UserData"]?["Played"]?.GetValue<bool>());
     }
 
     [Theory]

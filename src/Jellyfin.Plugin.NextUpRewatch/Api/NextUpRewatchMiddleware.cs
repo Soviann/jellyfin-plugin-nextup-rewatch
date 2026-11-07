@@ -150,7 +150,8 @@ public class NextUpRewatchMiddleware
                 byte[] filteredJsonBytes;
                 try
                 {
-                    filteredJsonBytes = await FilterNextUpResponseAsync(decompressedStream, user, config?.EnableDebugLogging ?? false).ConfigureAwait(false);
+                    var promote = config?.PromoteActiveRewatches ?? true;
+                    filteredJsonBytes = await FilterNextUpResponseAsync(decompressedStream, user, config?.EnableDebugLogging ?? false, promote).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -215,13 +216,18 @@ public class NextUpRewatchMiddleware
     }
 
     /// <summary>
-    /// Filters the NextUp response JSON stream to exclude stalled completed items.
+    /// Filters the NextUp response JSON stream to exclude stalled completed items and optionally promote active rewatches.
     /// </summary>
     /// <param name="responseStream">The raw response stream.</param>
     /// <param name="user">The requesting user.</param>
     /// <param name="debugLogging">Whether to emit debug log entries.</param>
+    /// <param name="promoteActiveRewatches">Whether to update LastPlayedDate to the series latest watch date.</param>
     /// <returns>The filtered JSON byte array.</returns>
-    public async Task<byte[]> FilterNextUpResponseAsync(Stream responseStream, User user, bool debugLogging)
+    public async Task<byte[]> FilterNextUpResponseAsync(
+        Stream responseStream,
+        User user,
+        bool debugLogging,
+        bool promoteActiveRewatches = true)
     {
         var jsonNode = await JsonNode.ParseAsync(responseStream).ConfigureAwait(false);
         if (jsonNode is not JsonObject rootObj || !rootObj.TryGetPropertyValue("Items", out var itemsNode) || itemsNode is not JsonArray itemsArray)
@@ -248,9 +254,11 @@ public class NextUpRewatchMiddleware
 
             var isPlayed = false;
             DateTime? epLastPlayedDate = null;
+            JsonObject? userDataObj = null;
 
-            if (itemObj.TryGetPropertyValue("UserData", out var userDataNode) && userDataNode is JsonObject userDataObj)
+            if (itemObj.TryGetPropertyValue("UserData", out var userDataNode) && userDataNode is JsonObject parsedUserDataObj)
             {
+                userDataObj = parsedUserDataObj;
                 if (userDataObj.TryGetPropertyValue("Played", out var playedVal))
                 {
                     isPlayed = playedVal?.GetValue<bool>() ?? false;
@@ -308,6 +316,11 @@ public class NextUpRewatchMiddleware
                         seriesName,
                         epLastPlayedDate,
                         seriesMaxLastPlayed);
+                }
+
+                if (promoteActiveRewatches && seriesMaxLastPlayed.HasValue && userDataObj != null)
+                {
+                    userDataObj["LastPlayedDate"] = seriesMaxLastPlayed.Value.ToString("O");
                 }
             }
 

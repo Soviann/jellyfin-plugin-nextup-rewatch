@@ -33,6 +33,16 @@
 
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label>
+                        <input is="emby-checkbox" type="checkbox" id="chkPromoteActiveRewatches" name="chkPromoteActiveRewatches" />
+                        <span>Promote Active Rewatches (Sort to Top)</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Updates the <code>LastPlayedDate</code> of active rewatch episodes to match the series' latest watch timestamp. This ensures clients (like Moonfin) sort them at the top of "Continue Watching" instead of sinking them by their original watch date.
+                    </div>
+                </div>
+
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label>
                         <input is="emby-checkbox" type="checkbox" id="chkEnableDebugLogging" name="chkEnableDebugLogging" />
                         <span>Enable Debug Logging</span>
                     </label>
